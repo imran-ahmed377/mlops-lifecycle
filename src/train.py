@@ -1,110 +1,98 @@
-from __future__ import annotations # for Python 3.7+ to allow postponed evaluation of type annotations
+from __future__ import annotations  # Allow postponed evaluation of type annotations.
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple  # Type hints for readability and editor support.
 
-import joblib
-import mlflow
-import mlflow.sklearn
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler # for feature scaling
+import joblib  # Serialize and save trained models.
+import mlflow  # Track experiments, parameters, and metrics.
+import mlflow.sklearn  # MLflow helpers for scikit-learn model logging.
+import pandas as pd  # Load tabular datasets from CSV files.
+from sklearn.linear_model import LogisticRegression  # Classifier used in this project.
+from sklearn.metrics import accuracy_score, f1_score  # Validation metrics.
+from sklearn.pipeline import Pipeline  # Chain preprocessing and model in one object.
+from sklearn.preprocessing import StandardScaler  # Normalize feature scales before training.
 
-from src.common import ensure_parent_dir, load_params
+from src.common import ensure_parent_dir, load_params  # Shared project utilities.
 
-TARGET_COLUMN = "target"
+TARGET_COLUMN = "target"  # Name of the label column in train/validation CSV files.
 
-"""
-This module provides functionality for training a machine learning model 
-using the Iris dataset.
-"""
-
-def _load_datasets(train_csv: str, valid_csv: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    train_df = pd.read_csv(train_csv)
-    valid_df = pd.read_csv(valid_csv)
-    return train_df, valid_df
+"""Train and persist the Iris classifier, and log run metadata to MLflow."""
 
 
-def _build_model(C: float, max_iter: int, random_state: int) -> Pipeline:
+def _load_datasets(train_csv: str, valid_csv: str) -> Tuple[pd.DataFrame, pd.DataFrame]:  # Load prepared train and validation splits.
+    train_df = pd.read_csv(train_csv)  # Read training split from disk.
+    valid_df = pd.read_csv(valid_csv)  # Read validation split from disk.
+    return train_df, valid_df  # Return both datasets for downstream use.
+
+
+def _build_model(C: float, max_iter: int, random_state: int) -> Pipeline:  # Construct the training pipeline from config values.
     return Pipeline(
         steps=[
-            ("scaler", StandardScaler()),
+            ("scaler", StandardScaler()),  # Standardize features to improve optimizer stability.
             (
                 "classifier",
                 LogisticRegression(
-                    C=C,
-                    max_iter=max_iter,
-                    random_state=random_state,
+                    C=C,  # Inverse regularization strength.
+                    max_iter=max_iter,  # Maximum optimization iterations.
+                    random_state=random_state,  # Reproducibility seed.
                 ),
             ),
         ]
     )
 
-# The run_train function orchestrates the training process by loading 
-# the training and validation datasets, building a logistic regression model, 
-# and logging the training parameters and metrics using MLflow. It also saves 
-# the trained model to a specified file path and logs it as an artifact in MLflow.
 
-def run_train() -> None:
-    params = load_params()
-    paths = params["paths"]
-    training_cfg = params["training"]["logistic"]
-    random_state = int(params["project"]["random_state"])
+def run_train() -> None:  # Execute end-to-end model training and artifact logging.
+    params = load_params()  # Read project configuration from params.yaml.
+    paths = params["paths"]  # File paths for input and output artifacts.
+    training_cfg = params["training"]["logistic"]  # Logistic regression hyperparameters.
+    random_state = int(params["project"]["random_state"])  # Global reproducibility seed.
 
-    train_df, valid_df = _load_datasets(paths["train_csv"], paths["valid_csv"])
-    feature_columns: List[str] = [c for c in train_df.columns if c != TARGET_COLUMN] # Extract feature columns by excluding the target column
+    train_df, valid_df = _load_datasets(paths["train_csv"], paths["valid_csv"])  # Load prepared datasets.
+    feature_columns: List[str] = [c for c in train_df.columns if c != TARGET_COLUMN]  # Keep all columns except label.
 
-    X_train = train_df[feature_columns]
-    y_train = train_df[TARGET_COLUMN].astype(int)
+    X_train = train_df[feature_columns]  # Training features.
+    y_train = train_df[TARGET_COLUMN].astype(int)  # Training labels as integers.
 
-    X_valid = valid_df[feature_columns]
-    y_valid = valid_df[TARGET_COLUMN].astype(int)
+    X_valid = valid_df[feature_columns]  # Validation features.
+    y_valid = valid_df[TARGET_COLUMN].astype(int)  # Validation labels as integers.
 
     model = _build_model(
-        C=float(training_cfg["C"]),
-        max_iter=int(training_cfg["max_iter"]),
-        random_state=random_state,
+        C=float(training_cfg["C"]),  # Regularization strength from config.
+        max_iter=int(training_cfg["max_iter"]),  # Max iterations from config.
+        random_state=random_state,  # Use project-wide random state.
     )
 
-    # Set the MLflow experiment name based on the configuration, 
-    # defaulting to the project name if not specified
-    experiment_name = params.get("mlflow", {}).get("experiment_name", params["project"]["name"])
-    mlflow.set_experiment(experiment_name)
+    experiment_name = params.get("mlflow", {}).get("experiment_name", params["project"]["name"])  # Use configured MLflow experiment name when available.
+    mlflow.set_experiment(experiment_name)  # Ensure run is logged under this experiment.
 
-    # Start an MLflow run with a descriptive name and log the training parameters,
-    # including model type, random state, test size, regularization strength (C), and 
-    # maximum iterations. After fitting the model, it logs the validation 
-    # metrics to MLflow and saves the trained model artifact.
-    with mlflow.start_run(run_name="train-logreg"):
+    with mlflow.start_run(run_name="train-logreg"):  # Open a tracked MLflow run for this training job.
         mlflow.log_params(
             {
-                "model": "LogisticRegression",
-                "random_state": random_state,
-                "test_size": float(params["training"]["test_size"]),
-                "C": float(training_cfg["C"]),
-                "max_iter": int(training_cfg["max_iter"]),
+                "model": "LogisticRegression",  # Model family identifier.
+                "random_state": random_state,  # Seed used during training.
+                "test_size": float(params["training"]["test_size"]),  # Validation split fraction.
+                "C": float(training_cfg["C"]),  # Regularization parameter.
+                "max_iter": int(training_cfg["max_iter"]),  # Iteration budget for solver.
             }
         )
 
-        model.fit(X_train, y_train)
+        model.fit(X_train, y_train)  # Train pipeline on training split.
 
-        predictions = model.predict(X_valid)
+        predictions = model.predict(X_valid)  # Generate predictions on validation split.
         metrics: Dict[str, float] = {
-            "valid_accuracy": float(accuracy_score(y_valid, predictions)),
-            "valid_f1_macro": float(f1_score(y_valid, predictions, average="macro")),
+            "valid_accuracy": float(accuracy_score(y_valid, predictions)),  # Fraction of correct predictions.
+            "valid_f1_macro": float(f1_score(y_valid, predictions, average="macro")),  # Class-balanced F1 score.
         }
-        mlflow.log_metrics(metrics)
+        mlflow.log_metrics(metrics)  # Persist evaluation metrics in MLflow.
 
-        ensure_parent_dir(paths["model_file"])
-        joblib.dump(model, paths["model_file"])
+        ensure_parent_dir(paths["model_file"])  # Create model output directory if missing.
+        joblib.dump(model, paths["model_file"])  # Save trained model for serving.
 
-        mlflow.sklearn.log_model(sk_model=model, artifact_path="model")
-        mlflow.log_artifact(paths["model_file"], artifact_path="exported_model")
+        mlflow.sklearn.log_model(sk_model=model, artifact_path="model")  # Store model artifact in MLflow run.
+        mlflow.log_artifact(paths["model_file"], artifact_path="exported_model")  # Store exported model file in a separate artifact folder.
 
-    print("Training complete.")
-    print(f"Saved model to {paths['model_file']}")
+    print("Training complete.")  # Console signal that training succeeded.
+    print(f"Saved model to {paths['model_file']}")  # Show where the model was written.
 
 
-if __name__ == "__main__":
-    run_train()
+if __name__ == "__main__":  # Run training when file is executed directly.
+    run_train()  # Script entry point.
