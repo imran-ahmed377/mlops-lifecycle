@@ -1,56 +1,63 @@
-# Simple Iris MLOps Project
+# MLOps Lifecycle: Iris Classification
 
-This project is a very small MLOps example built around the Iris dataset and a Logistic Regression model.
+A compact, end-to-end MLOps reference project built on the Iris dataset.
+It demonstrates how to move from reproducible data preparation to model serving,
+drift monitoring, and promotion-gated retraining with a practical local stack.
 
-The goal is to keep the project easy to understand while introducing these tools step by step:
-- DVC for data and model versioning
-- MLflow for experiment and model tracking
-- Prometheus for monitoring and drift metrics
-- Streamlit for a simple real-time prediction UI
+## What This Project Covers
 
-## Current Status
+- Reproducible data preparation and train/validation split
+- Logistic Regression training with MLflow experiment logging
+- Offline evaluation with metrics and confusion matrix artifacts
+- FastAPI inference service with Prometheus metrics exposure
+- Drift detection with Kolmogorov-Smirnov (KS) statistics
+- Retraining workflow with a promotion gate (candidate must not regress)
+- Streamlit dashboard for live predictions and drift visibility
 
-Implemented so far:
-- reproducible data preparation
-- model training with MLflow logging
-- standalone evaluation step
-- local Git + DVC repository initialized
-- DVC pipeline stages for `prepare`, `train`, `evaluate`, and `retrain`
-- FastAPI prediction service with `/health`, `/predict`, `/metrics`, `/drift/status`, and `/drift/check`
-- Prometheus scrape configuration for API monitoring
-- Prometheus alert rules for drift and model availability
-- Streamlit frontend for live prediction and drift visibility
-- KS-based drift monitoring using baseline vs live request data
-- manual retraining with a promotion gate that only keeps the candidate model if it is not worse than the current model
+## Architecture Overview
 
-## Project Structure
+1. `src.data_prep` loads Iris data, creates train/validation splits, and builds drift baseline artifacts.
+2. `src.train` trains a scikit-learn pipeline and logs run metadata to MLflow.
+3. `src.evaluate` writes validation metrics and confusion matrix outputs.
+4. `src.serve_api` serves `/predict`, logs live request features, and exposes `/metrics`.
+5. `src.drift_monitor` compares baseline vs live feature distributions using KS tests.
+6. `src.retrain` trains a candidate model and promotes it only when gate criteria are met.
+
+## Technology Stack
+
+- Python, pandas, scikit-learn, SciPy
+- DVC for pipeline reproducibility
+- MLflow for experiment tracking and model artifacts
+- FastAPI + Uvicorn for inference serving
+- Prometheus for metrics scraping and alerting
+- Streamlit for interactive UI
+
+## Repository Layout
 
 ```text
-app/
-data/
-drift/
-metrics/
-models/
-prometheus/
-src/
-tests/
-requirements.txt
-params.yaml
-dvc.yaml
+app/                    # Streamlit app
+data/                   # Raw and processed datasets
+drift/                  # Drift baseline, live requests, drift status
+metrics/                # Evaluation and retraining reports
+models/                 # Active model artifact
+prometheus/             # Prometheus config, alerts, query examples
+src/                    # Pipeline and service source code
+tests/                  # Unit tests
+dvc.yaml                # Reproducible pipeline stages
+params.yaml             # Centralized configuration
+requirements.txt        # Python dependencies
 ```
 
-## Quick Start
+## Quick Start (Windows / PowerShell)
 
-### 1. Create and activate a virtual environment
-
-PowerShell:
+### 1. Create and activate virtual environment
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-If PowerShell blocks activation, use Command Prompt:
+If execution policy blocks activation:
 
 ```bat
 python -m venv .venv
@@ -63,128 +70,119 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 3. Run the pipeline manually
-
-Prepare data:
-
-```powershell
-python -m src.data_prep
-```
-
-Train model:
-
-```powershell
-python -m src.train
-```
-
-Evaluate model:
-
-```powershell
-python -m src.evaluate
-```
-
-### 4. Run the reproducible DVC pipeline
-
-The DVC pipeline is already initialized. Run the main stages with:
+### 3. Run the full reproducible pipeline
 
 ```powershell
 dvc repro
 ```
 
-To run only retraining:
-
-```powershell
-dvc repro retrain
-```
-
-### 5. Run Prometheus for monitoring
-
-Keep the API running first so Prometheus can scrape `http://127.0.0.1:8000/metrics`.
-
-The Prometheus configuration is stored in [prometheus/prometheus.yml](prometheus/prometheus.yml) and it loads alert rules from [prometheus/alerts.yml](prometheus/alerts.yml).
-
-Ready-to-use PromQL examples for a first dashboard are listed in [prometheus/dashboard_queries.md](prometheus/dashboard_queries.md).
-
-If `prometheus.exe` is available on your machine, run:
-
-```powershell
-prometheus.exe --config.file=prometheus/prometheus.yml
-```
-
-If Prometheus is added to your PATH, this also works:
-
-```powershell
-prometheus --config.file=prometheus/prometheus.yml
-```
-
-Then open:
-
-```text
-http://127.0.0.1:9090
-```
-
-Current alert rules:
-- `IrisDataDriftAlert`: drift status reached alert level and stayed there for 1 minute.
-- `IrisDataDriftWarning`: drift status reached warning level and stayed there for 2 minutes.
-- `IrisDriftSignalMissing`: drift signal is still unavailable or there is not enough live data for 5 minutes.
-- `IrisModelUnavailable`: the API does not have a trained model loaded for 1 minute.
-
-### 6. Run the prediction API
+### 4. Start the inference API
 
 ```powershell
 python -m src.serve_api
 ```
 
-The API will be available at:
+Default API endpoint: http://127.0.0.1:8000
 
-```text
-http://127.0.0.1:8000
-```
-
-### 7. Run the Streamlit UI
+### 5. Start the Streamlit app
 
 ```powershell
 python -m streamlit run app/streamlit_app.py --server.headless true --server.port 8501
 ```
 
-Then open:
+Streamlit URL: http://127.0.0.1:8501
 
-```text
-http://127.0.0.1:8501
-```
-
-### 8. Run drift check manually
+### 6. Start Prometheus (optional but recommended)
 
 ```powershell
+prometheus --config.file=prometheus/prometheus.yml
+```
+
+Prometheus URL: http://127.0.0.1:9090
+
+## Useful Commands
+
+Run stages manually:
+
+```powershell
+python -m src.data_prep
+python -m src.train
+python -m src.evaluate
 python -m src.drift_monitor
-```
-
-### 9. Run retraining manually
-
-```powershell
 python -m src.retrain
 ```
 
-## Outputs Created So Far
+Run only retraining stage with DVC:
 
-- raw dataset: `data/raw/iris.csv`
-- train split: `data/processed/train.csv`
-- validation split: `data/processed/valid.csv`
-- trained model: `models/model.joblib`
-- evaluation metrics: `metrics/eval_metrics.json`
-- confusion matrix: `metrics/confusion_matrix.csv`
-- drift baseline reference: `drift/baseline_reference.csv`
-- drift baseline stats: `drift/baseline_stats.json`
-- live prediction log: `drift/live_requests.csv`
-- latest drift status: `drift/drift_status.json`
-- retraining report: `metrics/retrain_report.json`
-- local dependency compatibility report: `python_package_compatibility.txt`
+```powershell
+dvc repro retrain
+```
 
-## Next Steps
+Run unit tests:
 
-The next implementation steps are:
-- add a simple Prometheus or Grafana dashboard for live metrics
-- replace pseudo-label retraining with real labeled feedback data
-- add automated tests for API, drift logic, and retraining gate
-- add API smoke tests for `/predict`, `/drift/status`, and `/metrics`
-- optionally connect the local Git repo to GitHub for backup and collaboration
+```powershell
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Service readiness and model-loaded flag |
+| POST | `/predict` | Predict iris class for a single feature payload |
+| GET | `/metrics` | Prometheus-formatted metrics |
+| GET | `/drift/status` | Return most recent drift assessment |
+| POST | `/drift/check` | Trigger a fresh drift check and return result |
+
+## Key Artifacts
+
+| Path | Description |
+|---|---|
+| `data/raw/iris.csv` | Raw Iris dataset export |
+| `data/processed/train.csv` | Training split |
+| `data/processed/valid.csv` | Validation split |
+| `models/model.joblib` | Currently active model |
+| `metrics/eval_metrics.json` | Validation metrics report |
+| `metrics/confusion_matrix.csv` | Confusion matrix output |
+| `drift/baseline_reference.csv` | Baseline feature reference for drift checks |
+| `drift/baseline_stats.json` | Baseline feature summary statistics |
+| `drift/live_requests.csv` | Logged live prediction feature rows |
+| `drift/drift_status.json` | Latest drift result |
+| `metrics/retrain_report.json` | Retraining and promotion decision report |
+
+## Monitoring and Alerts
+
+Prometheus scraping and alert rules are defined in:
+
+- `prometheus/prometheus.yml`
+- `prometheus/alerts.yml`
+- `prometheus/dashboard_queries.md`
+
+Implemented alert rules:
+
+- `IrisDataDriftAlert` (critical)
+- `IrisDataDriftWarning` (warning)
+- `IrisDriftSignalMissing` (info)
+- `IrisModelUnavailable` (critical)
+
+## Experiment Tracking
+
+- Training and retraining runs are logged with MLflow.
+- Local MLflow artifacts are stored under `mlruns/`.
+- Promoted model artifacts are logged during successful retraining runs.
+
+## Notes on Retraining Gate
+
+The candidate model is promoted only if both validation metrics are at least as good as the currently deployed model:
+
+- `valid_accuracy`
+- `valid_f1_macro`
+
+If no current model exists, the candidate is promoted by default.
+
+## Roadmap
+
+- Add automated CI for tests and pipeline validation
+- Introduce real labeled feedback instead of pseudo-label retraining
+- Add model registry and release tagging workflow
+- Add dashboard snapshots and operational runbooks
