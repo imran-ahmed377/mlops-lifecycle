@@ -1,40 +1,39 @@
+# project: top-level identity settings shared across the entire pipeline
 project:
-  name: simple-iris-mlops
-  random_state: 42
+  name: simple-iris-mlops  # Human-readable project name used as the default MLflow experiment name.
+  random_state: 42          # Global random seed so every run produces identical splits and models.
 
+# paths: file locations for every input and output artifact produced by the pipeline
 paths:
-  raw_csv: data/raw/iris.csv
-  train_csv: data/processed/train.csv
-  valid_csv: data/processed/valid.csv
-  model_file: models/model.joblib
-  baseline_stats: drift/baseline_stats.json
-  baseline_reference: drift/baseline_reference.csv
-  eval_metrics: metrics/eval_metrics.json
-  confusion_matrix: metrics/confusion_matrix.csv
-  live_data: drift/live_requests.csv
+  raw_csv: data/raw/iris.csv                    # Destination for the full Iris dataset export before any splitting.
+  train_csv: data/processed/train.csv           # Destination for the training split (80 % of data by default).
+  valid_csv: data/processed/valid.csv           # Destination for the validation split (20 % of data by default).
+  model_file: models/model.joblib               # Path where the active trained model is saved and loaded by the API.
+  baseline_stats: drift/baseline_stats.json     # JSON file storing per-feature summary stats from the training baseline.
+  baseline_reference: drift/baseline_reference.csv  # CSV of raw training feature rows used as the drift reference window.
+  eval_metrics: metrics/eval_metrics.json       # JSON report with validation accuracy and F1 score after evaluation.
+  confusion_matrix: metrics/confusion_matrix.csv  # CSV confusion matrix comparing predicted vs actual classes.
+  live_data: drift/live_requests.csv            # Append-only log of live prediction requests used for drift checks.
 
-# The training section contains parameters related to the training process, 
-# including the test size for splitting the dataset and hyperparameters for 
-# the logistic regression model (C and max_iter). The drift section includes 
-# parameters for drift detection, such as window size, warning and alert thresholds, 
-# and the number of consecutive alert windows required to trigger an alert. The service 
-# section specifies the host and port for the API service, while the monitoring section 
-# defines the port for exposing monitoring metrics. 
+# training: controls how data is split and how the logistic regression model is configured
 training:
-  test_size: 0.2
-  logistic:
-    C: 1.0
-    max_iter: 200
+  test_size: 0.2  # Fraction of the full dataset reserved for validation (20 %).
+  logistic:       # Hyperparameters passed directly to sklearn's LogisticRegression.
+    C: 1.0        # Inverse regularization strength; smaller values apply stronger regularization.
+    max_iter: 200 # Maximum solver iterations before convergence is assumed.
 
+# drift: governs when the KS-test drift detector raises warnings or alerts
 drift:
-  window_size: 50
-  warning_ks: 0.15
-  alert_ks: 0.25
-  consecutive_alert_windows: 2
+  window_size: 50             # Number of most-recent live rows compared against the baseline each check.
+  warning_ks: 0.15            # KS statistic threshold above which a feature is flagged as "warning".
+  alert_ks: 0.25              # KS statistic threshold above which a feature is escalated to "alert".
+  consecutive_alert_windows: 2  # How many consecutive alert-level windows must occur before notifying.
 
+# service: network settings for the FastAPI inference server
 service:
-  host: 127.0.0.1
-  port: 8000
+  host: 127.0.0.1  # Interface the API binds to (localhost only by default).
+  port: 8000        # Port the API listens on; also where Prometheus scrapes /metrics.
 
+# monitoring: Prometheus metrics exposure settings
 monitoring:
-  metrics_port: 8000
+  metrics_port: 8000  # Port on which the /metrics endpoint is exposed for Prometheus scraping.
