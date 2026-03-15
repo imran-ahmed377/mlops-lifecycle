@@ -1,0 +1,126 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m src.data_prep
+    deps:
+    - path: params.yaml
+      hash: md5
+      md5: d21575bf46c970a9dbdb15fad81574f1
+      size: 1250
+    - path: src/common.py
+      hash: md5
+      md5: 21ea816091734be6a60126f41f720949
+      size: 1322
+    - path: src/data_prep.py
+      hash: md5
+      md5: 1a894f84071c5e549c71f064d12481b6
+      size: 3383
+    outs:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 2471b196482f8756104a193f2497d1e5
+      size: 2358
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: f62eb59ab49d79c725d3982a6309f855
+      size: 648
+    - path: data/raw/iris.csv
+      hash: md5
+      md5: 21d441a28bce4417276097df955afc50
+      size: 2928
+    - path: drift/baseline_reference.csv
+      hash: md5
+      md5: e9f7b0c203301dca1f90094b0ef6972e
+      size: 2111
+    - path: drift/baseline_stats.json
+      hash: md5
+      md5: c9f8dfcab606a07c014db256e8b7a6f9
+      size: 790
+  train:
+    cmd: python -m src.train
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 2471b196482f8756104a193f2497d1e5
+      size: 2358
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: f62eb59ab49d79c725d3982a6309f855
+      size: 648
+    - path: params.yaml
+      hash: md5
+      md5: d21575bf46c970a9dbdb15fad81574f1
+      size: 1250
+    - path: src/common.py
+      hash: md5
+      md5: 21ea816091734be6a60126f41f720949
+      size: 1322
+    - path: src/train.py
+      hash: md5
+      md5: db1cd1a99a74f3d2107e241ebcad42f5
+      size: 4036
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: ea81cd80d4200b7f49ef14132e122720
+      size: 1873
+  evaluate:
+    cmd: python -m src.evaluate
+    deps:
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: f62eb59ab49d79c725d3982a6309f855
+      size: 648
+    - path: models/model.joblib
+      hash: md5
+      md5: ea81cd80d4200b7f49ef14132e122720
+      size: 1873
+    - path: params.yaml
+      hash: md5
+      md5: d21575bf46c970a9dbdb15fad81574f1
+      size: 1250
+    - path: src/common.py
+      hash: md5
+      md5: 21ea816091734be6a60126f41f720949
+      size: 1322
+    - path: src/evaluate.py
+      hash: md5
+      md5: 0413e59cd62a93b851fe91b0a17a4192
+      size: 1728
+    outs:
+    - path: metrics/confusion_matrix.csv
+      hash: md5
+      md5: 7a5de71d14de5fa8f34359ae76e69960
+      size: 72
+    - path: metrics/eval_metrics.json
+      hash: md5
+      md5: 384f92fc289bff2466ffba2741033be9
+      size: 237
+  retrain:
+    cmd: python -m src.retrain
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 2471b196482f8756104a193f2497d1e5
+      size: 2358
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: f62eb59ab49d79c725d3982a6309f855
+      size: 648
+    - path: params.yaml
+      hash: md5
+      md5: d21575bf46c970a9dbdb15fad81574f1
+      size: 1250
+    - path: src/common.py
+      hash: md5
+      md5: 21ea816091734be6a60126f41f720949
+      size: 1322
+    - path: src/retrain.py
+      hash: md5
+      md5: 76899f80eb2735f896a73b59704925be
+      size: 6847
+    outs:
+    - path: metrics/retrain_report.json
+      hash: md5
+      md5: 5d1c5dea0d5ca68cd3bd615debc0ea01
+      size: 646

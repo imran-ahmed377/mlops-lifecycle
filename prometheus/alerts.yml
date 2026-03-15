@@ -1,0 +1,38 @@
+groups:
+  - name: simple-iris-alerts
+    rules:
+      - alert: IrisDataDriftAlert
+        expr: data_drift_status >= 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Iris data drift detected
+          description: The latest drift check is in alert state. Review live data and consider retraining.
+
+      - alert: IrisDataDriftWarning
+        expr: data_drift_status == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Iris data drift warning
+          description: The latest drift check is in warning state. Monitor incoming feature distributions closely.
+
+      - alert: IrisDriftSignalMissing
+        expr: data_drift_status < 0
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: Iris drift signal unavailable
+          description: Drift status is insufficient_data or missing. Generate more live requests or run a drift check.
+
+      - alert: IrisModelUnavailable
+        expr: model_loaded < 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Iris model is unavailable
+          description: The API does not currently have a trained model loaded.

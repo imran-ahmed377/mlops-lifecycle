@@ -1,0 +1,40 @@
+project:
+  name: simple-iris-mlops
+  random_state: 42
+
+paths:
+  raw_csv: data/raw/iris.csv
+  train_csv: data/processed/train.csv
+  valid_csv: data/processed/valid.csv
+  model_file: models/model.joblib
+  baseline_stats: drift/baseline_stats.json
+  baseline_reference: drift/baseline_reference.csv
+  eval_metrics: metrics/eval_metrics.json
+  confusion_matrix: metrics/confusion_matrix.csv
+  live_data: drift/live_requests.csv
+
+# The training section contains parameters related to the training process, 
+# including the test size for splitting the dataset and hyperparameters for 
+# the logistic regression model (C and max_iter). The drift section includes 
+# parameters for drift detection, such as window size, warning and alert thresholds, 
+# and the number of consecutive alert windows required to trigger an alert. The service 
+# section specifies the host and port for the API service, while the monitoring section 
+# defines the port for exposing monitoring metrics. 
+training:
+  test_size: 0.2
+  logistic:
+    C: 1.0
+    max_iter: 200
+
+drift:
+  window_size: 50
+  warning_ks: 0.15
+  alert_ks: 0.25
+  consecutive_alert_windows: 2
+
+service:
+  host: 127.0.0.1
+  port: 8000
+
+monitoring:
+  metrics_port: 8000

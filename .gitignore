@@ -1,0 +1,23 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Editor/OS noise
+.vscode/
+.DS_Store
+
+# Local runtime artifacts
+mlruns/
+*.log
+
+# Keep DVC-tracked data via .dvc files, ignore generated data directories
+data/raw/
+data/processed/
+models/
+metrics/
+drift/
