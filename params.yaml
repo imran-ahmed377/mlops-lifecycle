@@ -37,3 +37,8 @@ service:
 # monitoring: Prometheus metrics exposure settings
 monitoring:
   metrics_port: 8000  # Port on which the /metrics endpoint is exposed for Prometheus scraping.
+
+# mlflow: experiment tracking backend and experiment naming
+mlflow:
+  experiment_name: simple-iris-mlops  # Logical MLflow experiment where training and retraining runs are grouped.
+  tracking_dir: mlruns  # Repository-local file-store directory used as the default tracking backend.

@@ -14,7 +14,7 @@ from sklearn.metrics import accuracy_score, f1_score  # Validation metrics used 
 from sklearn.pipeline import Pipeline  # Wrap preprocessing and model into one reusable object.
 from sklearn.preprocessing import StandardScaler  # Scale features before logistic regression training.
 
-from src.common import ensure_parent_dir, load_params  # Shared config loading and directory helpers.
+from src.common import ensure_parent_dir, load_params, resolve_mlflow_tracking_uri  # Shared config loading and directory helpers.
 
 TARGET_COLUMN = "target"  # Ground-truth label column expected by the training pipeline.
 PREDICTED_COLUMN = "predicted_class"  # Column logged by the inference API for pseudo-labeled live data.
@@ -86,6 +86,7 @@ def run_retrain() -> None:  # Execute retraining, gate evaluation, model promoti
     paths = params["paths"]  # Resolve configured artifact locations.
     training_cfg = params["training"]["logistic"]  # Read logistic regression hyperparameters.
     random_state = int(params["project"]["random_state"])  # Reproducibility seed shared across the project.
+    project_root = Path(__file__).resolve().parents[1]  # Resolve repository root regardless of current working directory.
 
     retrain_cfg = params.get("retrain", {})  # Optional retraining-specific settings.
     min_new_rows = int(retrain_cfg.get("min_new_rows", 5))  # Minimum live rows required before mixing live data into retraining.
@@ -138,6 +139,8 @@ def run_retrain() -> None:  # Execute retraining, gate evaluation, model promoti
         ensure_parent_dir(paths["model_file"])  # Create model output folder if needed.
         joblib.dump(candidate_model, paths["model_file"])  # Persist candidate as the new deployed model.
 
+    tracking_uri = resolve_mlflow_tracking_uri(params, project_root=project_root)  # Lock runs to one deterministic tracking backend.
+    mlflow.set_tracking_uri(tracking_uri)
     experiment_name = params.get("mlflow", {}).get("experiment_name", params["project"]["name"])  # Use configured MLflow experiment or project name.
     mlflow.set_experiment(experiment_name)  # Ensure retraining run is logged under the correct experiment.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations  # Allow postponed evaluation of type annotations.
 
+from pathlib import Path  # Resolve repository-root-relative artifact paths.
 from typing import Dict, List, Tuple  # Type hints for readability and editor support.
 
 import joblib  # Serialize and save trained models.
@@ -11,7 +12,7 @@ from sklearn.metrics import accuracy_score, f1_score  # Validation metrics.
 from sklearn.pipeline import Pipeline  # Chain preprocessing and model in one object.
 from sklearn.preprocessing import StandardScaler  # Normalize feature scales before training.
 
-from src.common import ensure_parent_dir, load_params  # Shared project utilities.
+from src.common import ensure_parent_dir, load_params, resolve_mlflow_tracking_uri  # Shared project utilities.
 
 TARGET_COLUMN = "target"  # Name of the label column in train/validation CSV files.
 
@@ -45,6 +46,7 @@ def run_train() -> None:  # Execute end-to-end model training and artifact loggi
     paths = params["paths"]  # File paths for input and output artifacts.
     training_cfg = params["training"]["logistic"]  # Logistic regression hyperparameters.
     random_state = int(params["project"]["random_state"])  # Global reproducibility seed.
+    project_root = Path(__file__).resolve().parents[1]  # Resolve repository root regardless of current working directory.
 
     train_df, valid_df = _load_datasets(paths["train_csv"], paths["valid_csv"])  # Load prepared datasets.
     feature_columns: List[str] = [c for c in train_df.columns if c != TARGET_COLUMN]  # Keep all columns except label.
@@ -61,6 +63,8 @@ def run_train() -> None:  # Execute end-to-end model training and artifact loggi
         random_state=random_state,  # Use project-wide random state.
     )
 
+    tracking_uri = resolve_mlflow_tracking_uri(params, project_root=project_root)  # Lock runs to one deterministic tracking backend.
+    mlflow.set_tracking_uri(tracking_uri)
     experiment_name = params.get("mlflow", {}).get("experiment_name", params["project"]["name"])  # Use configured MLflow experiment name when available.
     mlflow.set_experiment(experiment_name)  # Ensure run is logged under this experiment.
 

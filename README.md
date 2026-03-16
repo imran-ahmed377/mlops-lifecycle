@@ -124,6 +124,13 @@ Run unit tests:
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
+Start MLflow UI against the same local tracking backend used by training:
+
+```powershell
+$trackingUri = python -c "import mlflow; print(mlflow.get_tracking_uri())"
+python -m mlflow ui --backend-store-uri $trackingUri --port 5000
+```
+
 ## API Endpoints
 
 | Method | Endpoint | Purpose |
