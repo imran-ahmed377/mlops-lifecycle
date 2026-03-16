@@ -32,6 +32,40 @@ class ServeApiTests(unittest.TestCase):
             },
         )
 
+    def test_predict_returns_confidence_and_latency(self) -> None:
+        class StubModel:
+            classes_ = [0, 1, 2]
+
+            def predict(self, _frame):
+                return [1]
+
+            def predict_proba(self, _frame):
+                return [[0.05, 0.9, 0.05]]
+
+        payload = serve_api.PredictRequest(
+            sepal_length_cm=5.1,
+            sepal_width_cm=3.5,
+            petal_length_cm=1.4,
+            petal_width_cm=0.2,
+        )
+
+        with patch.object(serve_api.service, "model", StubModel()):
+            with patch.object(serve_api.service, "append_live_row"):
+                response = serve_api.predict(payload)
+
+        self.assertEqual(response["predicted_class"], 1)
+        self.assertEqual(response["predicted_label"], "versicolor")
+        self.assertAlmostEqual(float(response["confidence"]), 0.9, places=6)
+
+        class_probabilities = response.get("class_probabilities", {})
+        self.assertIn("setosa", class_probabilities)
+        self.assertIn("versicolor", class_probabilities)
+        self.assertIn("virginica", class_probabilities)
+        self.assertAlmostEqual(float(class_probabilities["versicolor"]), 0.9, places=6)
+
+        self.assertIn("latency_ms", response)
+        self.assertGreaterEqual(float(response["latency_ms"]), 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
