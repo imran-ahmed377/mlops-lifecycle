@@ -21,3 +21,4 @@ data/processed/
 models/
 metrics/
 drift/
+python_package_compatibility.txt
